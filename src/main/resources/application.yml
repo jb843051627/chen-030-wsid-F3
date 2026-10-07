@@ -128,3 +128,11 @@ oss:
   access-key: minioadmin  # 上文创建的AK
   secret-key: minioadmin # 上文创建的SK
   bucket-name: v2-cloud  # 上文创建的桶名称
+# 年度核查与换证提醒·按日照跑
+# 静默那一截开不开窗只由这三栏说了算，程序不自己掐时辰；
+# 开窗(silence-enabled=true)且起止齐全时，窗内够日子的行搁着不起，窗走完后的趟次再起话。
+wsid:
+  remind:
+    silence-enabled: false
+    silence-from:
+    silence-to:

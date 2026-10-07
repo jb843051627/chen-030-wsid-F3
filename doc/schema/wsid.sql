@@ -123,22 +123,58 @@ CREATE TABLE IF NOT EXISTS t_wsid_quota_rule (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度可发额度贴线档';
 
+-- 年度核查与换证提醒条目：
+-- 去重键钉在「一处主体（holder_no）＋一桩事由（matter_kind）＋一日（qualified_at 当日）」三样上；
+-- qualified_at 为口径上「够上条件的那一瞬」——核查往应交之前数、换证往届满之前数，
+-- amount 日内的行才捞得着；amount 空着/取负/大过定数上限，本行本轮不动，也不借别行的数。
+-- dispatch_at 记实际起话时刻，静默时段里只搁不起；status 沉「发成/发不成」于行面，不许只在屏上闪。
 CREATE TABLE IF NOT EXISTS t_wsid_remind_item (
   id bigint NOT NULL COMMENT '主键',
   item_no varchar(64) DEFAULT NULL COMMENT '年度核查与换证提醒条目代号',
-  due_at datetime DEFAULT NULL COMMENT '该发那一一日（落库为 datetime）',
-  amount decimal(12,2) DEFAULT NULL COMMENT '至多许提前几日',
-  channel_kind int DEFAULT NULL COMMENT '通道取用式 0只走站内 1先站内后短信息 2三式依次回落',
+  holder_no varchar(64) DEFAULT NULL COMMENT '一处主体：繁育主体册代号',
+  matter_kind int DEFAULT NULL COMMENT '一桩事由 1年度核查 2换证',
+  layer_name varchar(64) DEFAULT NULL COMMENT '层别名目（甲层/乙层/丙层）',
+  due_at datetime DEFAULT NULL COMMENT '应交日（核查）／卡管届满日（换证）',
+  qualified_at datetime DEFAULT NULL COMMENT '够上条件的那一瞬（本轮认定、年低对流水只认它，不因静默改记）',
+  dispatch_at datetime DEFAULT NULL COMMENT '实际起话那一刻（静默走完再起时晚于 qualified_at）',
+  silent_to_at datetime DEFAULT NULL COMMENT '本行撞上的静默走完那一刻（没撞为空）',
+  amount decimal(12,2) DEFAULT NULL COMMENT '至多许提前几日（空着/负数/大过定数上限的行本轮不捞）',
+  channel_kind int DEFAULT NULL COMMENT '通道取用式 0只走站内 1先站内后短信息 2三式挨个退',
   content varchar(255) DEFAULT NULL COMMENT '事由与所对主体的记要',
-  status int DEFAULT NULL COMMENT '条目情形 0搁着 1已发出 2发不成',
+  sms_no varchar(32) DEFAULT NULL COMMENT '短信息可用号子（空着则短信息一式走不通）',
+  status int DEFAULT NULL COMMENT '条目情形 0搁着 1已发出 2发不成 3文面缺栏按下不发',
+  del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注（缺哪几栏/发不成的原样一记）',
+  PRIMARY KEY (id),
+  KEY idx_remind_qualified (holder_no, matter_kind, qualified_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度核查与换证提醒条目';
+
+-- 一趟里每一式通道各落一档回执：前一式的记号留着，不许为省一行擦掉旧记号。
+-- 去重键同条目三样 + run_id（同一刻两趟各留各的先后，互不挤掉）。
+CREATE TABLE IF NOT EXISTS t_wsid_remind_dispatch (
+  id bigint NOT NULL COMMENT '主键',
+  run_id varchar(64) NOT NULL COMMENT '本轮扫描趟号（同一刻开的两趟各号各的）',
+  item_id bigint NOT NULL COMMENT '所对提醒条目',
+  holder_no varchar(64) DEFAULT NULL COMMENT '一处主体（冗余自条目，对流水用）',
+  matter_kind int DEFAULT NULL COMMENT '一桩事由 1年度核查 2换证',
+  qualified_at datetime DEFAULT NULL COMMENT '够上条件的那一瞬（抄自条目）',
+  channel_level int NOT NULL COMMENT '落到第几式 1站内 2短信息 3上门告知',
+  reach_status int NOT NULL COMMENT '本式结果 0说不通 1走通',
+  content varchar(500) DEFAULT NULL COMMENT '本式回执原话（失败缘由也落这里）',
   del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
   create_by varchar(64) DEFAULT NULL COMMENT '创建者',
   create_time datetime DEFAULT NULL COMMENT '创建时间',
   update_by varchar(64) DEFAULT NULL COMMENT '更新者',
   update_time datetime DEFAULT NULL COMMENT '更新时间',
   remark varchar(500) DEFAULT NULL COMMENT '备注',
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度核查与换证提醒条目';
+  PRIMARY KEY (id),
+  KEY idx_dispatch_run (run_id),
+  KEY idx_dispatch_item (item_id, channel_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='提醒条目通道回落回执档';
 
 CREATE TABLE IF NOT EXISTS t_wsid_species_book (
   id bigint NOT NULL COMMENT '主键',
@@ -192,3 +228,16 @@ INSERT IGNORE INTO t_wsid_species_book (id, spec_no, spec_name, spec_kind, origi
 VALUES (0, 'WS00', '榛原省桦川市磐泽县磐泽湿地甲层陆生兽类·在册示范种', '甲层', '榛原省—桦川市—磐泽县—北磐乡—东滩片区', '省局名录下发', 0, 0, 'seed', NOW()),
        (1, 'WS01', '南泽乡西汊乙层鸟类·已调出的旧名录（已调出）', '乙层', '榛原省—桦川市—磐泽县—南泽乡—西汊片区', '市里增补', 1, 0, 'seed', NOW());
 
+
+-- 存量库移栏（提醒条目去年立的存量与今年新立同走一个挑法，旧库已建过 t_wsid_remind_item 的照此加列）：
+-- ALTER TABLE t_wsid_remind_item
+--   ADD COLUMN holder_no varchar(64) DEFAULT NULL COMMENT '一处主体：繁育主体册代号' AFTER item_no,
+--   ADD COLUMN matter_kind int DEFAULT NULL COMMENT '一桩事由 1年度核查 2换证' AFTER holder_no,
+--   ADD COLUMN layer_name varchar(64) DEFAULT NULL COMMENT '层别名目（甲层/乙层/丙层）' AFTER matter_kind,
+--   ADD COLUMN qualified_at datetime DEFAULT NULL COMMENT '够上条件的那一瞬' AFTER due_at,
+--   ADD COLUMN dispatch_at datetime DEFAULT NULL COMMENT '实际起话那一刻' AFTER qualified_at,
+--   ADD COLUMN silent_to_at datetime DEFAULT NULL COMMENT '本行撞上的静默走完那一刻' AFTER dispatch_at,
+--   ADD COLUMN sms_no varchar(32) DEFAULT NULL COMMENT '短信息可用号子' AFTER content,
+--   ADD KEY idx_remind_qualified (holder_no, matter_kind, qualified_at);
+-- qualified_at 为可空日期，这里只立普通索引便于去重账按键取当日档；
+-- 去重的「同一桩」由服务层去重账（回执档 qualified_at 当日）兜底，不依赖 DB 唯一键强制。
