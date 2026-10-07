@@ -21,6 +21,13 @@ fuce:
   roll-verification: false
   # 文件路径 示例（ Windows配置D:/v2/uploadPath，Linux配置 /home/v2/uploadPath）
   profile: D:/v2/uploadPath
+  # 年度核查与换证提醒（六问只在服务层扫描方法里开口，开不开窗只由下面两栏说了算）
+  wsid:
+    remind:
+      # 静默时段就两栏：两栏都填着才算开窗（HH:mm 或 HH:mm:ss，讫比起點小即跨午夜）；
+      # 任一栏空着就是不开窗，够上条件当日即起话。程序不自己掐时辰。
+      silence-from:
+      silence-to:
 #tomcat config
 server :
   port : 8080

@@ -126,19 +126,50 @@ CREATE TABLE IF NOT EXISTS t_wsid_quota_rule (
 CREATE TABLE IF NOT EXISTS t_wsid_remind_item (
   id bigint NOT NULL COMMENT '主键',
   item_no varchar(64) DEFAULT NULL COMMENT '年度核查与换证提醒条目代号',
-  due_at datetime DEFAULT NULL COMMENT '该发那一一日（落库为 datetime）',
-  amount decimal(12,2) DEFAULT NULL COMMENT '至多许提前几日',
+  holder_no varchar(64) DEFAULT NULL COMMENT '一处主体代号（繁育主体册代号）',
+  level_name varchar(128) DEFAULT NULL COMMENT '层别名目（挂在哪一层／哪一名目下）',
+  affair_kind varchar(32) DEFAULT NULL COMMENT '一桩事由名目（年度核查／换证）',
+  due_at datetime DEFAULT NULL COMMENT '该发那一一日（应交之日／届满之日，落库为 datetime）',
+  amount decimal(12,2) DEFAULT NULL COMMENT '至多许提前几日（空着/取负/大过定数上限30，本行本轮不动）',
   channel_kind int DEFAULT NULL COMMENT '通道取用式 0只走站内 1先站内后短信息 2三式依次回落',
+  mobile_no varchar(32) DEFAULT NULL COMMENT '短信息那一栏的可用号子（空着则短信息一式不通）',
   content varchar(255) DEFAULT NULL COMMENT '事由与所对主体的记要',
-  status int DEFAULT NULL COMMENT '条目情形 0搁着 1已发出 2发不成',
+  status int DEFAULT NULL COMMENT '条目情形 0搁着 1已发出 2发不成 3文面缺栏',
+  eligible_at datetime DEFAULT NULL COMMENT '够上条件的那一瞬（静默后起话仍记此瞬，年底对流水用）',
+  fired_at datetime DEFAULT NULL COMMENT '实际起话那一刻',
+  chan_used int DEFAULT NULL COMMENT '走通的是第几式 0站内 1短信息 2上门（发不成时空着）',
+  receipts varchar(2000) DEFAULT NULL COMMENT '各式回执连缀（只追加，前一式回执不擦）',
   del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
   create_by varchar(64) DEFAULT NULL COMMENT '创建者',
   create_time datetime DEFAULT NULL COMMENT '创建时间',
   update_by varchar(64) DEFAULT NULL COMMENT '更新者',
   update_time datetime DEFAULT NULL COMMENT '更新时间',
-  remark varchar(500) DEFAULT NULL COMMENT '备注',
-  PRIMARY KEY (id)
+  remark varchar(500) DEFAULT NULL COMMENT '备注（含「上门不通」时第三式回不通）',
+  PRIMARY KEY (id),
+  KEY idx_remind_due (due_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度核查与换证提醒条目';
+
+-- 去重键钉在「一处主体＋一桩事由＋一日」：同日第二趟只对照不重发，隔日重新累计。
+-- 同刻两趟并发各排各的队，唯一键兜底，后到一趟的插入被挡下转对照，不并趟也不挤掉。
+CREATE TABLE IF NOT EXISTS t_wsid_remind_send_log (
+  id bigint NOT NULL COMMENT '主键',
+  item_id bigint DEFAULT NULL COMMENT '所对条目',
+  holder_no varchar(64) DEFAULT NULL COMMENT '一处主体代号',
+  affair_kind varchar(32) DEFAULT NULL COMMENT '一桩事由名目（年度核查／换证）',
+  send_day char(10) DEFAULT NULL COMMENT '起话那一日（yyyy-MM-dd，去重键里的一日）',
+  chan_used int DEFAULT NULL COMMENT '走通的是第几式 0站内 1短信息 2上门',
+  eligible_at datetime DEFAULT NULL COMMENT '够上条件的那一瞬',
+  fired_at datetime DEFAULT NULL COMMENT '实际起话那一刻',
+  run_seq varchar(32) DEFAULT NULL COMMENT '本趟排队先后',
+  del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_remind_holder_affair_day (holder_no, affair_kind, send_day),
+  KEY idx_remind_send_item (item_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='提醒起话沉底';
 
 CREATE TABLE IF NOT EXISTS t_wsid_species_book (
   id bigint NOT NULL COMMENT '主键',

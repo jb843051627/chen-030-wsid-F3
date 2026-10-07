@@ -37,15 +37,30 @@ public class TWsidRemindItem implements Serializable {
     @ApiModelProperty(value = "年度核查与换证提醒条目代号")
     private String itemNo;
 
-    /** 该发那一一日（落库为 datetime） */
+    /** 一处主体代号（繁育主体册代号） */
+    @TableField("holder_no")
+    @ApiModelProperty(value = "一处主体代号（繁育主体册代号）")
+    private String holderNo;
+
+    /** 层别名目（挂在哪一层／哪一名目下） */
+    @TableField("level_name")
+    @ApiModelProperty(value = "层别名目（挂在哪一层／哪一名目下）")
+    private String levelName;
+
+    /** 一桩事由名目（年度核查／换证） */
+    @TableField("affair_kind")
+    @ApiModelProperty(value = "一桩事由名目（年度核查／换证）")
+    private String affairKind;
+
+    /** 该发那一一日（应交之日／届满之日，落库为 datetime） */
     @TableField("due_at")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
-    @ApiModelProperty(value = "该发那一一日（落库为 datetime）")
+    @ApiModelProperty(value = "该发那一一日（应交之日／届满之日，落库为 datetime）")
     private Date dueAt;
 
-    /** 至多许提前几日 */
+    /** 至多许提前几日（空着/取负/大过定数上限，本行本轮不动） */
     @TableField("amount")
-    @ApiModelProperty(value = "至多许提前几日")
+    @ApiModelProperty(value = "至多许提前几日（空着/取负/大过定数上限，本行本轮不动）")
     private BigDecimal amount;
 
     /** 通道取用式 0只走站内 1先站内后短信息 2三式依次回落 */
@@ -53,15 +68,42 @@ public class TWsidRemindItem implements Serializable {
     @ApiModelProperty(value = "通道取用式 0只走站内 1先站内后短信息 2三式依次回落")
     private Integer channelKind;
 
+    /** 短信息那一栏的可用号子（空着则短信息一式不通） */
+    @TableField("mobile_no")
+    @ApiModelProperty(value = "短信息那一栏的可用号子（空着则短信息一式不通）")
+    private String mobileNo;
+
     /** 事由与所对主体的记要 */
     @TableField("content")
     @ApiModelProperty(value = "事由与所对主体的记要")
     private String content;
 
-    /** 条目情形 0搁着 1已发出 2发不成 */
+    /** 条目情形 0搁着 1已发出 2发不成 3文面缺栏 */
     @TableField("status")
-    @ApiModelProperty(value = "条目情形 0搁着 1已发出 2发不成")
+    @ApiModelProperty(value = "条目情形 0搁着 1已发出 2发不成 3文面缺栏")
     private Integer status;
+
+    /** 够上条件的那一瞬（静默后起话仍记此瞬，供年底对流水） */
+    @TableField("eligible_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "够上条件的那一瞬（静默后起话仍记此瞬）")
+    private Date eligibleAt;
+
+    /** 实际起话那一刻 */
+    @TableField("fired_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "实际起话那一刻")
+    private Date firedAt;
+
+    /** 走通的是第几式 0站内 1短信息 2上门（发不成时空着） */
+    @TableField("chan_used")
+    @ApiModelProperty(value = "走通的是第几式 0站内 1短信息 2上门（发不成时空着）")
+    private Integer chanUsed;
+
+    /** 各式回执连缀（只追加，前一式的回执不擦） */
+    @TableField("receipts")
+    @ApiModelProperty(value = "各式回执连缀（只追加，前一式的回执不擦）")
+    private String receipts;
 
     /** 删除标记 0正常 1删除 */
     @TableField("del_flag")
@@ -111,6 +153,30 @@ public class TWsidRemindItem implements Serializable {
         this.itemNo = itemNo;
     }
 
+    public String getHolderNo() {
+        return holderNo;
+    }
+
+    public void setHolderNo(String holderNo) {
+        this.holderNo = holderNo;
+    }
+
+    public String getLevelName() {
+        return levelName;
+    }
+
+    public void setLevelName(String levelName) {
+        this.levelName = levelName;
+    }
+
+    public String getAffairKind() {
+        return affairKind;
+    }
+
+    public void setAffairKind(String affairKind) {
+        this.affairKind = affairKind;
+    }
+
     public Date getDueAt() {
         return dueAt;
     }
@@ -135,6 +201,14 @@ public class TWsidRemindItem implements Serializable {
         this.channelKind = channelKind;
     }
 
+    public String getMobileNo() {
+        return mobileNo;
+    }
+
+    public void setMobileNo(String mobileNo) {
+        this.mobileNo = mobileNo;
+    }
+
     public String getContent() {
         return content;
     }
@@ -149,6 +223,38 @@ public class TWsidRemindItem implements Serializable {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public Date getEligibleAt() {
+        return eligibleAt;
+    }
+
+    public void setEligibleAt(Date eligibleAt) {
+        this.eligibleAt = eligibleAt;
+    }
+
+    public Date getFiredAt() {
+        return firedAt;
+    }
+
+    public void setFiredAt(Date firedAt) {
+        this.firedAt = firedAt;
+    }
+
+    public Integer getChanUsed() {
+        return chanUsed;
+    }
+
+    public void setChanUsed(Integer chanUsed) {
+        this.chanUsed = chanUsed;
+    }
+
+    public String getReceipts() {
+        return receipts;
+    }
+
+    public void setReceipts(String receipts) {
+        this.receipts = receipts;
     }
 
     public Integer getDelFlag() {
